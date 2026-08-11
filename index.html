@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>SaludaApp</title>
+<meta name="description" content="Recetas saludables, plan semanal y lista de la compra." />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#5B6B4F" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="SaludaApp" />
+<link rel="icon" href="icon-192.png" />
+
+<style>
+  :root{
+    --crema:#FAF6EF;
+    --trigo:#EDE4D3;
+    --carbon:#2B2622;
+    --oliva:#5B6B4F;
+    --oliva-osc:#43503A;
+    --tomate:#C1553A;
+    --salvia:#7C9473;
+    --linea:#DCD2BC;
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0;padding:0;background:var(--crema);color:var(--carbon);font-family:var(--font-body);}
+  body{
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    min-height:100vh;
+  }
+  h1,h2,h3{font-family:var(--font-display); font-weight:700; margin:0;}
+  button{font-family:inherit;}
+  .app{max-width:640px; margin:0 auto; padding: 0 16px;}
+
+  /* Header */
+  header.top{
+    padding: calc(18px + env(safe-area-inset-top)) 16px 14px;
+    background: var(--oliva);
+    color: var(--crema);
+    position: sticky; top:0; z-index:20;
+    border-bottom: 4px solid var(--tomate);
+  }
+  header.top .wrap{max-width:640px;margin:0 auto;display:flex;align-items:baseline;justify-content:space-between;}
+  header.top h1{font-size:1.5rem; letter-spacing:0.3px;}
+  header.top h1 span{color: var(--tomate);}
+  header.top .fecha{font-family:var(--font-mono); font-size:0.72rem; opacity:0.85; text-transform:uppercase; letter-spacing:0.06em;}
+
+  /* Tabs bottom nav */
+  nav.tabs{
+    position:fixed; bottom:0; left:0; right:0;
+    background: var(--carbon);
+    display:flex; z-index:30;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid #000;
+  }
+  nav.tabs button{
+    flex:1; background:none; border:none; color:#C9C2B4;
+    padding:10px 4px 8px; font-size:0.68rem; display:flex; flex-direction:column; align-items:center; gap:3px;
+    cursor:pointer;
+  }
+  nav.tabs button .ic{font-size:1.25rem;}
+  nav.tabs button.active{color: var(--crema);}
+  nav.tabs button.active .ic{filter: drop-shadow(0 0 0 var(--tomate));}
+  nav.tabs button.active{position:relative;}
+  nav.tabs button.active::before{
+    content:""; position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:28px; height:3px; background:var(--tomate); border-radius:0 0 3px 3px;
+  }
+
+  section.view{padding: 18px 0 24px; animation: fade .25s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  .section-title{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px;}
+  .section-title h2{font-size:1.2rem;}
+  .eyebrow{font-family:var(--font-mono); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--oliva); margin-bottom:4px; display:block;}
+
+  /* Chips */
+  .chips{display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:8px; scrollbar-width:none;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:0 0 auto; padding:7px 13px; border-radius:20px; border:1px solid var(--linea);
+    background:#fff; font-size:0.78rem; color:var(--carbon); cursor:pointer; white-space:nowrap;
+  }
+  .chip.active{background:var(--oliva); border-color:var(--oliva); color:#fff;}
+
+  input[type="search"], input[type="text"], textarea, input[type="number"], input[type="date"]{
+    width:100%; padding:11px 13px; border-radius:10px; border:1px solid var(--linea);
+    background:#fff; font-size:0.95rem; font-family:var(--font-body); color:var(--carbon);
+  }
+  input:focus, textarea:focus, button:focus-visible{outline:2px solid var(--tomate); outline-offset:1px;}
+
+  /* Recipe cards */
+  .cards{display:flex; flex-direction:column; gap:10px;}
+  .rcard{
+    background:#fff; border:1px solid var(--linea); border-radius:14px; padding:12px 14px;
+    display:flex; gap:12px; align-items:center; cursor:pointer;
+  }
+  .thumb-wrap{position:relative; width:56px; height:56px; border-radius:12px; overflow:hidden;
+    background:var(--trigo); flex:0 0 auto; display:flex; align-items:center; justify-content:center;}
+  .thumb-wrap .emoji-fallback{font-size:1.9rem; position:relative; z-index:1;}
+  .thumb-wrap img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; background:var(--trigo);}
+  .rcard .info{flex:1; min-width:0;}
+  .rcard h3{font-size:1rem; margin-bottom:3px;}
+  .rcard .meta{font-family:var(--font-mono); font-size:0.7rem; color:#6b6455; display:flex; gap:10px; flex-wrap:wrap;}
+  .rcard .tagrow{margin-top:4px; display:flex; gap:5px; flex-wrap:wrap;}
+  .tag-mini{font-size:0.62rem; background:var(--trigo); color:var(--oliva-osc); padding:2px 7px; border-radius:8px; text-transform:uppercase; letter-spacing:0.03em;}
+  .addbtn{flex:0 0 auto; width:34px; height:34px; border-radius:50%; border:1px solid var(--oliva); background:#fff; color:var(--oliva); font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .addbtn.added{background:var(--oliva); color:#fff;}
+
+  .empty{text-align:center; padding:40px 20px; color:#8a8371;}
+  .empty .ic{font-size:2.2rem; display:block; margin-bottom:8px;}
+
+  /* Modal */
+  .overlay{position:fixed; inset:0; background:rgba(43,38,34,0.55); z-index:50; display:flex; align-items:flex-end;}
+  .overlay.hidden{display:none;}
+  .sheet{
+    background:var(--crema); width:100%; max-height:88vh; overflow-y:auto;
+    border-radius:20px 20px 0 0; padding:20px 20px calc(28px + env(safe-area-inset-bottom));
+    animation: up .25s ease;
+  }
+  @keyframes up{from{transform:translateY(30px); opacity:0;} to{transform:none; opacity:1;}}
+  .sheet .grabber{width:38px; height:4px; background:var(--linea); border-radius:3px; margin:0 auto 14px;}
+  .hero-photo{position:relative; width:100%; height:190px; border-radius:14px; overflow:hidden;
+    background:var(--trigo); display:flex; align-items:center; justify-content:center; margin-bottom:14px;}
+  .hero-photo .emoji-fallback{font-size:3.2rem; position:relative; z-index:1;}
+  .hero-photo img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2;}
+  .sheet h2{font-size:1.35rem; margin-bottom:2px;}
+  .stamp-row{display:flex; gap:8px; margin:12px 0; flex-wrap:wrap;}
+  .stamp{border:1px dashed var(--oliva); border-radius:8px; padding:6px 10px; font-family:var(--font-mono); font-size:0.68rem; text-align:center; color:var(--oliva-osc);}
+  .stamp b{display:block; font-size:0.95rem; font-family:var(--font-body); color:var(--carbon);}
+  .sheet h4{font-size:0.8rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--oliva); margin:16px 0 8px;}
+  .ing-list{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px;}
+  .ing-list li{display:flex; justify-content:space-between; font-size:0.9rem; padding:7px 0; border-bottom:1px solid var(--linea);}
+  .ing-list li span.q{font-family:var(--font-mono); color:#6b6455; font-size:0.82rem;}
+  .steps{padding-left:20px; margin:0; display:flex; flex-direction:column; gap:8px;}
+  .steps li{font-size:0.92rem; line-height:1.45;}
+  .btn{background:var(--oliva); color:#fff; border:none; border-radius:10px; padding:12px 18px; font-size:0.92rem; cursor:pointer; font-weight:600;}
+  .btn.secondary{background:#fff; border:1px solid var(--oliva); color:var(--oliva);}
+  .btn.ghost{background:none; border:1px solid var(--linea); color:var(--carbon);}
+  .btn.tomate{background:var(--tomate);}
+  .btn.block{width:100%;}
+  .btn-row{display:flex; gap:10px; margin-top:18px;}
+  .close-x{position:absolute; top:16px; right:16px; background:none; border:none; font-size:1.3rem; color:#8a8371; cursor:pointer;}
+
+  /* Plan */
+  .plan-actions{display:flex; gap:10px; margin-bottom:14px;}
+  .day-block{background:#fff; border:1px solid var(--linea); border-radius:14px; margin-bottom:10px; overflow:hidden;}
+  .day-head{background:var(--trigo); padding:8px 14px; font-family:var(--font-mono); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; display:flex; justify-content:space-between; color:var(--oliva-osc);}
+  .slot{display:flex; align-items:center; gap:10px; padding:10px 14px; border-top:1px solid var(--linea); cursor:pointer;}
+  .slot .slabel{width:64px; flex:0 0 auto; font-size:0.72rem; color:#8a8371; text-transform:uppercase; letter-spacing:0.04em;}
+  .slot .sval{flex:1; font-size:0.9rem;}
+  .slot .sval.empty-slot{color:#b3ac9b; font-style:italic;}
+  .slot .sx{color:#b3ac9b; font-size:1rem; padding:4px;}
+
+  /* Shopping list */
+  .shop-cat{margin-bottom:16px;}
+  .shop-cat h4{font-size:0.78rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--oliva); margin-bottom:8px; display:flex; align-items:center; gap:6px;}
+  .shop-item{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--linea);}
+  .shop-item input[type=checkbox]{width:19px; height:19px; accent-color:var(--oliva); flex:0 0 auto;}
+  .shop-item .sname{flex:1; font-size:0.92rem;}
+  .shop-item.checked .sname{text-decoration:line-through; color:#b3ac9b;}
+  .shop-item .sqty{font-family:var(--font-mono); font-size:0.78rem; color:#8a8371;}
+
+  /* Tracking */
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;}
+  .stat-card{background:#fff; border:1px solid var(--linea); border-radius:14px; padding:14px;}
+  .stat-card .eyebrow{margin-bottom:6px;}
+  .stat-card .big{font-family:var(--font-display); font-size:1.7rem;}
+  .water-row{display:flex; gap:8px; align-items:center; margin-top:8px;}
+  .water-row button{width:36px; height:36px; border-radius:50%; border:1px solid var(--oliva); background:#fff; color:var(--oliva); font-size:1.1rem; cursor:pointer;}
+  .water-glasses{display:flex; gap:4px; flex-wrap:wrap; margin-top:6px;}
+  .water-glasses span{font-size:1.05rem;}
+  .weight-form{display:flex; gap:8px; margin-bottom:14px;}
+  .weight-form input{flex:1;}
+  canvas{width:100%; height:140px; display:block; background:#fff; border:1px solid var(--linea); border-radius:14px;}
+  .install-note{background:var(--trigo); border-radius:12px; padding:12px 14px; font-size:0.82rem; line-height:1.5; margin-top:18px; color:var(--oliva-osc);}
+  .install-note b{color:var(--carbon);}
+
+  /* ---- Inicio / Dashboard ---- */
+  .greeting{margin-bottom:16px;}
+  .greeting .hola{color:#8a8371; font-size:0.92rem; display:block; margin-bottom:2px;}
+  .greeting h2{font-size:1.55rem; line-height:1.2;}
+
+  .hero-dash{
+    background: linear-gradient(160deg, var(--carbon) 0%, var(--oliva-osc) 100%);
+    color:#fff; border-radius:20px; padding:22px 20px; position:relative; overflow:hidden;
+  }
+  .hero-dash::after{
+    content:""; position:absolute; right:-40px; top:-40px; width:140px; height:140px;
+    background: radial-gradient(circle, rgba(193,85,58,0.35), transparent 70%);
+  }
+  .hero-dash .goal-row{display:flex; justify-content:space-between; align-items:baseline; position:relative; z-index:1;}
+  .hero-dash .goal-row .lbl{font-family:var(--font-mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em; opacity:0.75;}
+  .hero-dash .goal-row .kcaltxt{font-family:var(--font-mono); font-size:0.78rem; opacity:0.85; cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;}
+  .hero-dash .pct{font-family:var(--font-display); font-size:3.1rem; margin:4px 0 0; position:relative; z-index:1;}
+  .hero-dash .restante{font-size:0.85rem; opacity:0.8; margin-bottom:12px; position:relative; z-index:1;}
+  .progressbar{height:8px; background:rgba(255,255,255,0.16); border-radius:6px; overflow:hidden; position:relative; z-index:1;}
+  .progressbar .fill{height:100%; background:var(--tomate); border-radius:6px; transition:width .3s ease;}
+  .macro-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:16px; position:relative; z-index:1;}
+  .macro-chip{background:rgba(255,255,255,0.09); border-radius:12px; padding:10px 8px; text-align:left;}
+  .macro-chip b{display:block; font-size:1.1rem; font-family:var(--font-display);}
+  .macro-chip span{font-size:0.62rem; opacity:0.78; text-transform:uppercase; letter-spacing:0.04em;}
+
+  .quick-actions{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px 0;}
+  .qa-card{background:#fff; border:1px solid var(--linea); border-radius:16px; padding:16px; cursor:pointer; text-align:left;}
+  .qa-card .qi{font-size:1.35rem; margin-bottom:10px; display:block;}
+  .qa-card h3{font-size:0.95rem; margin-bottom:2px;}
+  .qa-card p{margin:0; font-size:0.76rem; color:#8a8371;}
+
+  .timeline-card{display:flex; gap:12px; align-items:center; background:#fff; border:1px solid var(--linea); border-radius:14px; padding:11px 14px; margin-bottom:10px; cursor:pointer;}
+  .timeline-card .thumb-wrap{width:50px; height:50px;}
+  .timeline-card .thumb-wrap.empty{background:transparent; border:1px dashed var(--linea);}
+  .timeline-card .tinfo{flex:1; min-width:0;}
+  .timeline-card .ttime{font-family:var(--font-mono); font-size:0.66rem; color:#8a8371; text-transform:uppercase; letter-spacing:0.05em;}
+  .timeline-card h3{font-size:0.93rem; margin:2px 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .timeline-card .tkcal{font-family:var(--font-mono); font-weight:700; font-size:0.88rem; flex:0 0 auto; color:var(--oliva-osc);}
+  .timeline-card.empty-card{border-style:dashed; color:#b3ac9b; background:transparent;}
+  .timeline-card.empty-card .thumb-wrap{background:none; border:1px dashed var(--linea); color:#b3ac9b;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <h1>Saluda<span>App</span></h1>
+    <div class="fecha" id="fechaHoy"></div>
+  </div>
+</header>
+
+<main class="app">
+
+  <!-- INICIO -->
+  <section class="view" id="view-inicio">
+    <div class="greeting">
+      <span class="hola" id="saludoHora">Hola</span>
+      <h2 id="saludoTitulo">Tu alimentación de hoy</h2>
+    </div>
+
+    <div class="hero-dash">
+      <div class="goal-row">
+        <span class="lbl">Objetivo diario</span>
+        <span class="kcaltxt" id="kcalTexto">0 / 0 kcal</span>
+      </div>
+      <div class="pct" id="pctTexto">0%</div>
+      <div class="restante" id="restanteTexto">Ajusta tu objetivo tocando las cifras</div>
+      <div class="progressbar"><div class="fill" id="pctFill" style="width:0%"></div></div>
+      <div class="macro-grid">
+        <div class="macro-chip"><b id="macroP">0 g</b><span>Proteína</span></div>
+        <div class="macro-chip"><b id="macroC">0 g</b><span>Carbohidratos</span></div>
+        <div class="macro-chip"><b id="macroG">0 g</b><span>Grasas</span></div>
+      </div>
+    </div>
+
+    <div class="quick-actions">
+      <button class="qa-card" id="btnCrearMenuHoy">
+        <span class="qi">🤖</span>
+        <h3>Crear menú</h3>
+        <p>Plan automático de hoy</p>
+      </button>
+      <button class="qa-card" id="btnAnadirComida">
+        <span class="qi">➕</span>
+        <h3>Añadir comida</h3>
+        <p>Elegir receta ahora</p>
+      </button>
+    </div>
+
+    <div class="section-title">
+      <h2>Hoy</h2>
+      <span class="eyebrow" id="numComidasHoy">0 comidas</span>
+    </div>
+    <div id="timelineHoy"></div>
+  </section>
+
+  <!-- RECETAS -->
+  <section class="view" id="view-recetas" style="display:none;">
+    <div class="section-title">
+      <div>
+        <span class="eyebrow">Recetario</span>
+        <h2>¿Qué te apetece cocinar?</h2>
+      </div>
+    </div>
+    <input type="search" id="buscador" placeholder="Buscar receta o ingrediente..." />
+    <div class="chips" id="chipsComida" style="margin-top:12px;"></div>
+    <div class="chips" id="chipsTag"></div>
+    <div class="cards" id="listaRecetas"></div>
+  </section>
+
+  <!-- PLAN -->
+  <section class="view" id="view-plan" style="display:none;">
+    <div class="section-title">
+      <div>
+        <span class="eyebrow">Semana</span>
+        <h2>Tu plan de comidas</h2>
+      </div>
+    </div>
+    <div class="plan-actions">
+      <button class="btn secondary" style="flex:1" id="btnGenerarPlan">🎲 Generar automático</button>
+      <button class="btn ghost" id="btnVaciarPlan">Vaciar</button>
+    </div>
+    <div id="planDias"></div>
+  </section>
+
+  <!-- COMPRA -->
+  <section class="view" id="view-compra" style="display:none;">
+    <div class="section-title">
+      <div>
+        <span class="eyebrow">Despensa</span>
+        <h2>Lista de la compra</h2>
+      </div>
+    </div>
+    <div class="plan-actions">
+      <button class="btn secondary" style="flex:1" id="btnRegenerarCompra">🔄 Generar desde el plan</button>
+      <button class="btn ghost" id="btnVaciarCompra">Vaciar</button>
+    </div>
+    <div id="listaCompra"></div>
+  </section>
+
+  <!-- SEGUIMIENTO -->
+  <section class="view" id="view-seguimiento" style="display:none;">
+    <div class="section-title">
+      <div>
+        <span class="eyebrow">Progreso</span>
+        <h2>Tu seguimiento</h2>
+      </div>
+    </div>
+
+    <div class="stat-card" style="margin-bottom:14px;">
+      <span class="eyebrow">Agua de hoy</span>
+      <div class="water-row">
+        <button id="btnAguaMenos">–</button>
+        <div class="big" id="aguaCount" style="min-width:80px; text-align:center;">0 / 8</div>
+        <button id="btnAguaMas">+</button>
+      </div>
+      <div class="water-glasses" id="aguaGlasses"></div>
+    </div>
+
+    <div class="stat-card" style="margin-bottom:18px;">
+      <span class="eyebrow">Peso</span>
+      <div class="weight-form">
+        <input type="number" step="0.1" id="pesoInput" placeholder="kg, ej. 78.4" />
+        <button class="btn" id="btnAddPeso">Añadir</button>
+      </div>
+      <canvas id="pesoChart" height="140"></canvas>
+      <div id="pesoResumen" style="font-family:var(--font-mono); font-size:0.75rem; color:#8a8371; margin-top:8px;"></div>
+    </div>
+
+    <div class="stat-card">
+      <span class="eyebrow">Notas rápidas</span>
+      <textarea id="notasTexto" rows="4" placeholder="Cómo te sientes, turno de hoy, objetivos..."></textarea>
+      <div class="btn-row"><button class="btn secondary block" id="btnGuardarNotas">Guardar nota</button></div>
+    </div>
+
+    <div class="install-note">
+      <b>📲 Instalar en el móvil:</b> en Chrome/Android toca el menú (⋮) → «Añadir a pantalla de inicio». En Safari/iPhone toca Compartir → «Añadir a pantalla de inicio». SaludaApp funcionará como una app normal, incluso sin conexión.
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-view="inicio"><span class="ic">🏠</span>Inicio</button>
+  <button class="tab-btn" data-view="recetas"><span class="ic">🍽️</span>Recetas</button>
+  <button class="tab-btn" data-view="plan"><span class="ic">📅</span>Plan</button>
+  <button class="tab-btn" data-view="compra"><span class="ic">🛒</span>Compra</button>
+  <button class="tab-btn" data-view="seguimiento"><span class="ic">📈</span>Progreso</button>
+</nav>
+
+<div class="overlay hidden" id="overlay">
+  <div class="sheet" id="sheetContent"></div>
+</div>
+
+<div class="overlay hidden" id="pickerOverlay">
+  <div class="sheet" id="pickerContent"></div>
+</div>
+
+<script src="recipes.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
