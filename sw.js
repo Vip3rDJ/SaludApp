@@ -1,9 +1,10 @@
-const CACHE_NAME = "saludaap-v1";
+const CACHE_NAME = "saludaap-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./app.js",
   "./recipes.js",
+  "./routines.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"

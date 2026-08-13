@@ -60,10 +60,10 @@
   }
   nav.tabs button{
     flex:1; background:none; border:none; color:#C9C2B4;
-    padding:10px 4px 8px; font-size:0.68rem; display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:9px 2px 8px; font-size:0.62rem; display:flex; flex-direction:column; align-items:center; gap:3px;
     cursor:pointer;
   }
-  nav.tabs button .ic{font-size:1.25rem;}
+  nav.tabs button .ic{font-size:1.15rem;}
   nav.tabs button.active{color: var(--crema);}
   nav.tabs button.active .ic{filter: drop-shadow(0 0 0 var(--tomate));}
   nav.tabs button.active{position:relative;}
@@ -221,6 +221,15 @@
   .timeline-card .tkcal{font-family:var(--font-mono); font-weight:700; font-size:0.88rem; flex:0 0 auto; color:var(--oliva-osc);}
   .timeline-card.empty-card{border-style:dashed; color:#b3ac9b; background:transparent;}
   .timeline-card.empty-card .thumb-wrap{background:none; border:1px dashed var(--linea); color:#b3ac9b;}
+
+  /* ---- Deporte ---- */
+  .day-dot{width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:0.62rem; font-family:var(--font-mono); background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.6);}
+  .day-dot.done{background:var(--tomate); color:#fff; font-weight:700;}
+  .day-dot.today{box-shadow:0 0 0 2px rgba(255,255,255,0.6);}
+  .banner-adapt{background:var(--oliva); color:#fff; border-radius:14px; padding:12px 14px; font-size:0.85rem; margin:12px 0; line-height:1.45;}
+  .banner-adapt b{display:block; margin-bottom:2px;}
+  .banner-adapt a.link-btn{color:#fff; text-decoration:underline; text-underline-offset:2px; font-size:0.8rem; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -250,7 +259,7 @@
       <div class="restante" id="restanteTexto">Ajusta tu objetivo tocando las cifras</div>
       <div class="progressbar"><div class="fill" id="pctFill" style="width:0%"></div></div>
       <div class="macro-grid">
-        <div class="macro-chip"><b id="macroP">0 g</b><span>Proteína</span></div>
+        <div class="macro-chip" id="macroPWrap" style="cursor:pointer;"><b id="macroP">0 g</b><span>Proteína</span></div>
         <div class="macro-chip"><b id="macroC">0 g</b><span>Carbohidratos</span></div>
         <div class="macro-chip"><b id="macroG">0 g</b><span>Grasas</span></div>
       </div>
@@ -269,11 +278,37 @@
       </button>
     </div>
 
+    <div id="bannerAdaptZone"></div>
+
     <div class="section-title">
       <h2>Hoy</h2>
       <span class="eyebrow" id="numComidasHoy">0 comidas</span>
     </div>
     <div id="timelineHoy"></div>
+  </section>
+
+  <!-- DEPORTE -->
+  <section class="view" id="view-deporte" style="display:none;">
+    <div class="section-title">
+      <div>
+        <span class="eyebrow">Entrenamiento</span>
+        <h2>Rutinas para hoy</h2>
+      </div>
+    </div>
+
+    <div class="hero-dash" id="rachaCard" style="padding:18px 20px;">
+      <div class="goal-row">
+        <span class="lbl">Tu racha</span>
+        <span class="kcaltxt" id="entrenoHoyTxt">Hoy: sin entrenar</span>
+      </div>
+      <div class="pct" id="rachaNum">0 días</div>
+      <div class="restante" id="rachaMsg">Empieza hoy con algo corto, lo importante es no cortar la cadena.</div>
+      <div class="week-dots" id="weekDots" style="display:flex; gap:6px; margin-top:12px; position:relative; z-index:1;"></div>
+    </div>
+
+    <div class="chips" id="chipsDepTipo" style="margin-top:16px;"></div>
+    <div class="chips" id="chipsDepLugar"></div>
+    <div class="cards" id="listaRutinas"></div>
   </section>
 
   <!-- RECETAS -->
@@ -365,6 +400,7 @@
 <nav class="tabs">
   <button class="tab-btn active" data-view="inicio"><span class="ic">🏠</span>Inicio</button>
   <button class="tab-btn" data-view="recetas"><span class="ic">🍽️</span>Recetas</button>
+  <button class="tab-btn" data-view="deporte"><span class="ic">🏋️</span>Deporte</button>
   <button class="tab-btn" data-view="plan"><span class="ic">📅</span>Plan</button>
   <button class="tab-btn" data-view="compra"><span class="ic">🛒</span>Compra</button>
   <button class="tab-btn" data-view="seguimiento"><span class="ic">📈</span>Progreso</button>
@@ -379,6 +415,7 @@
 </div>
 
 <script src="recipes.js"></script>
+<script src="routines.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

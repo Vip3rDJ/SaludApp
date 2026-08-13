@@ -1,7 +1,7 @@
 // ===== SaludaApp - lógica principal =====
 
 const DIAS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-const COMIDAS = ["desayuno","comida","cena"];
+const COMIDAS = ["desayuno","comida","cena","snack"];
 const CAT_INFO = {
   verduras:{label:"Verduras y hortalizas", ic:"🥦"},
   frutas:{label:"Frutas", ic:"🍎"},
@@ -34,7 +34,10 @@ function saveJSON(key, val){
 
 // ---------- Estado ----------
 let plan = loadJSON("saludaap_plan", {});
-DIAS.forEach(d=>{ if(!plan[d]) plan[d] = {desayuno:null, comida:null, cena:null}; });
+DIAS.forEach(d=>{
+  if(!plan[d]) plan[d] = {desayuno:null, comida:null, cena:null, snack:null};
+  if(plan[d].snack === undefined) plan[d].snack = null;
+});
 
 let compra = loadJSON("saludaap_compra", {items:[]});
 let favoritos = loadJSON("saludaap_favoritos", []);
@@ -42,7 +45,14 @@ let aguaState = loadJSON("saludaap_agua", {date:todayISO(), count:0});
 if(aguaState.date !== todayISO()) aguaState = {date:todayISO(), count:0};
 let pesos = loadJSON("saludaap_pesos", []); // [{date, kg}]
 let notas = localStorage.getItem("saludaap_notas") || "";
-let meta = loadJSON("saludaap_meta", {kcalGoal: 2200});
+let meta = loadJSON("saludaap_meta", {
+  kcalGoal: 2150,
+  proteinGoal: 155,
+  perfil: {edad:44, altura:175, peso:77}
+});
+let ejercicioHoy = loadJSON("saludaap_ejercicio_hoy", {date:null, rutinaId:null, kcal:0});
+if(ejercicioHoy.date !== todayISO()) ejercicioHoy = {date:null, rutinaId:null, kcal:0};
+let historialEjercicio = loadJSON("saludaap_historial_ejercicio", []); // [{date, rutinaId, nombre, kcal}]
 
 function persistAll(){
   saveJSON("saludaap_plan", plan);
@@ -51,6 +61,8 @@ function persistAll(){
   saveJSON("saludaap_agua", aguaState);
   saveJSON("saludaap_pesos", pesos);
   saveJSON("saludaap_meta", meta);
+  saveJSON("saludaap_ejercicio_hoy", ejercicioHoy);
+  saveJSON("saludaap_historial_ejercicio", historialEjercicio);
   localStorage.setItem("saludaap_notas", notas);
   if(typeof renderInicio === "function") renderInicio();
 }
@@ -74,6 +86,7 @@ function thumbHTML(r, extraClass){
 const views = {
   inicio: document.getElementById("view-inicio"),
   recetas: document.getElementById("view-recetas"),
+  deporte: document.getElementById("view-deporte"),
   plan: document.getElementById("view-plan"),
   compra: document.getElementById("view-compra"),
   seguimiento: document.getElementById("view-seguimiento"),
@@ -86,6 +99,7 @@ document.querySelectorAll(".tab-btn").forEach(btn=>{
       views[k].style.display = (k === btn.dataset.view) ? "" : "none";
     });
     if(btn.dataset.view === "inicio") renderInicio();
+    if(btn.dataset.view === "deporte") renderDeporte();
     if(btn.dataset.view === "plan") renderPlan();
     if(btn.dataset.view === "compra") renderCompra();
     if(btn.dataset.view === "seguimiento") renderSeguimiento();
@@ -547,7 +561,7 @@ function dibujarPesoChart(){
 }
 
 // ---------- INICIO / DASHBOARD ----------
-const MEAL_TIMES = {desayuno:"08:00", comida:"14:00", cena:"21:00"};
+const MEAL_TIMES = {desayuno:"08:00", comida:"14:00", cena:"21:00", snack:"17:30"};
 
 function actualizarSaludo(){
   const h = new Date().getHours();
@@ -567,7 +581,9 @@ function renderInicio(){
     return acc;
   }, {kcal:0,p:0,c:0,g:0});
 
-  const goal = meta.kcalGoal || 2200;
+  const goalBase = meta.kcalGoal || 2100;
+  const bonusEjercicio = (ejercicioHoy.date === todayISO()) ? (ejercicioHoy.kcal||0) : 0;
+  const goal = goalBase + bonusEjercicio;
   const pct = Math.min(100, Math.round((totales.kcal/goal)*100));
   const restante = Math.max(0, goal - totales.kcal);
 
@@ -577,10 +593,31 @@ function renderInicio(){
   document.getElementById("restanteTexto").textContent = totales.kcal <= goal
     ? `Te quedan ${restante} kcal hoy`
     : `Has superado tu objetivo por ${totales.kcal-goal} kcal`;
-  document.getElementById("macroP").textContent = totales.p + " g";
+  document.getElementById("macroP").textContent = `${totales.p} / ${meta.proteinGoal||150} g`;
   document.getElementById("macroC").textContent = totales.c + " g";
   document.getElementById("macroG").textContent = totales.g + " g";
   document.getElementById("numComidasHoy").textContent = `${comidasHoy.length} comida${comidasHoy.length===1?'':'s'}`;
+
+  const bannerZone = document.getElementById("bannerAdaptZone");
+  if(bonusEjercicio > 0){
+    const rutinaHoy = getRutina(ejercicioHoy.rutinaId);
+    bannerZone.innerHTML = `
+      <div class="banner-adapt">
+        <b>💪 Entrenaste hoy: ${rutinaHoy ? rutinaHoy.nombre : ''}</b>
+        Tu objetivo sube a ${goal} kcal (+${bonusEjercicio} por el entreno). Para recuperar bien el pecho y el core, prioriza recetas altas en proteína.
+        <div style="margin-top:6px;"><span class="link-btn" id="btnVerAltoProteina">Ver recetas altas en proteína →</span></div>
+      </div>
+    `;
+    const btnAP = document.getElementById("btnVerAltoProteina");
+    if(btnAP) btnAP.addEventListener("click", ()=>{
+      document.querySelector('.tab-btn[data-view="recetas"]').click();
+      filtroTag = "alto-proteina";
+      [...chipsTagEl.children].forEach(x=>x.classList.toggle("active", x.textContent.includes("proteína")));
+      renderRecetas();
+    });
+  } else {
+    bannerZone.innerHTML = "";
+  }
 
   const tl = document.getElementById("timelineHoy");
   tl.innerHTML = "";
@@ -615,10 +652,20 @@ function renderInicio(){
 }
 
 document.getElementById("kcalTexto").addEventListener("click", ()=>{
-  const val = prompt("Objetivo diario de kcal:", meta.kcalGoal || 2200);
+  const val = prompt("Objetivo diario de kcal (sin contar el extra por entrenar):", meta.kcalGoal || 2150);
   const num = parseInt(val, 10);
   if(num && num > 0){
     meta.kcalGoal = num;
+    persistAll();
+    renderInicio();
+  }
+});
+
+document.getElementById("macroPWrap").addEventListener("click", ()=>{
+  const val = prompt("Objetivo diario de proteína (g):", meta.proteinGoal || 155);
+  const num = parseInt(val, 10);
+  if(num && num > 0){
+    meta.proteinGoal = num;
     persistAll();
     renderInicio();
   }
@@ -644,6 +691,179 @@ document.getElementById("btnAnadirComida").addEventListener("click", ()=>{
   abrirSelectorReceta(dia, vacio || "cena");
 });
 
+// ---------- DEPORTE ----------
+function getRutina(id){ return RUTINAS.find(r=>r.id===id); }
+
+function thumbHTMLRutina(r){
+  return `<div class="thumb-wrap">
+    <span class="emoji-fallback">${r.emoji}</span>
+    <img src="${r.foto}" alt="" loading="lazy" onerror="this.remove()">
+  </div>`;
+}
+
+function calcularRacha(){
+  // Cuenta días consecutivos (incluyendo hoy si hay entreno) con al menos un entreno registrado
+  const fechas = new Set(historialEjercicio.map(h=>h.date));
+  let racha = 0;
+  let cursor = new Date();
+  // si hoy no hay entreno, la racha se cuenta hasta ayer (no se rompe hasta medianoche)
+  if(!fechas.has(todayISO())) cursor.setDate(cursor.getDate()-1);
+  while(true){
+    const off = cursor.getTimezoneOffset();
+    const local = new Date(cursor.getTime() - off*60000);
+    const iso = local.toISOString().slice(0,10);
+    if(fechas.has(iso)){
+      racha++;
+      cursor.setDate(cursor.getDate()-1);
+    } else break;
+  }
+  return racha;
+}
+
+let filtroDepTipo = "todas";
+let filtroDepLugar = "todas";
+
+const chipsDepTipoEl = document.getElementById("chipsDepTipo");
+const chipsDepTipoData = [["todas","Todas"],["core","Core / Cintura"],["pecho","Pecho"],["fullbody","Full body"],["hiit","HIIT"],["cardio","Cardio"],["piernas","Piernas"],["movilidad","Movilidad"]];
+chipsDepTipoData.forEach(([val,label])=>{
+  const c = document.createElement("button");
+  c.className = "chip" + (val==="todas" ? " active":"");
+  c.textContent = label;
+  c.addEventListener("click", ()=>{
+    filtroDepTipo = val;
+    [...chipsDepTipoEl.children].forEach(x=>x.classList.remove("active"));
+    c.classList.add("active");
+    renderRutinas();
+  });
+  chipsDepTipoEl.appendChild(c);
+});
+
+const chipsDepLugarEl = document.getElementById("chipsDepLugar");
+const chipsDepLugarData = [["todas","Cualquier lugar"],["casa","En casa"],["gimnasio","Gimnasio"],["exterior","Exterior"]];
+chipsDepLugarData.forEach(([val,label])=>{
+  const c = document.createElement("button");
+  c.className = "chip" + (val==="todas" ? " active":"");
+  c.textContent = label;
+  c.addEventListener("click", ()=>{
+    filtroDepLugar = val;
+    [...chipsDepLugarEl.children].forEach(x=>x.classList.remove("active"));
+    c.classList.add("active");
+    renderRutinas();
+  });
+  chipsDepLugarEl.appendChild(c);
+});
+
+function renderDeporte(){
+  const racha = calcularRacha();
+  document.getElementById("rachaNum").textContent = `${racha} día${racha===1?'':'s'}`;
+  const entrenoHoyEl = document.getElementById("entrenoHoyTxt");
+  const msgEl = document.getElementById("rachaMsg");
+  if(ejercicioHoy.date === todayISO()){
+    const r = getRutina(ejercicioHoy.rutinaId);
+    entrenoHoyEl.textContent = `Hoy: ${r ? r.nombre : 'entrenado'} ✓`;
+    msgEl.textContent = "¡Bien hecho! Vuelve mañana para no cortar la racha.";
+  } else {
+    entrenoHoyEl.textContent = "Hoy: sin entrenar";
+    msgEl.textContent = racha > 0
+      ? "Elige algo corto de abajo para no perder la racha."
+      : "Empieza con algo corto, lo importante es no cortar la cadena.";
+  }
+
+  const dotsWrap = document.getElementById("weekDots");
+  dotsWrap.innerHTML = "";
+  const fechas = new Set(historialEjercicio.map(h=>h.date));
+  const hoyIdx = (new Date().getDay()+6)%7;
+  for(let i=0;i<7;i++){
+    const d = new Date();
+    const diff = i - hoyIdx;
+    d.setDate(d.getDate()+diff);
+    const off = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - off*60000);
+    const iso = local.toISOString().slice(0,10);
+    const dot = document.createElement("div");
+    dot.className = "day-dot" + (fechas.has(iso) ? " done" : "") + (i===hoyIdx ? " today" : "");
+    dot.textContent = DIAS[i].slice(0,1);
+    dotsWrap.appendChild(dot);
+  }
+
+  renderRutinas();
+}
+
+function renderRutinas(){
+  const cont = document.getElementById("listaRutinas");
+  const lista = RUTINAS.filter(r=>{
+    if(filtroDepTipo !== "todas" && r.tipo !== filtroDepTipo) return false;
+    if(filtroDepLugar !== "todas" && r.lugar !== filtroDepLugar) return false;
+    return true;
+  });
+  if(lista.length === 0){
+    cont.innerHTML = `<div class="empty"><span class="ic">🔍</span>No hay rutinas con estos filtros.</div>`;
+    return;
+  }
+  cont.innerHTML = "";
+  lista.forEach(r=>{
+    const card = document.createElement("div");
+    card.className = "rcard";
+    card.innerHTML = `
+      ${thumbHTMLRutina(r)}
+      <div class="info">
+        <h3>${r.nombre}</h3>
+        <div class="meta"><span>⏱ ${r.duracion}′</span><span>🔥 ~${r.kcal} kcal</span><span>${r.lugar==='casa'?'🏠':r.lugar==='gimnasio'?'🏋️':'🌳'} ${r.lugar}</span></div>
+        <div class="tagrow"><span class="tag-mini">${r.nivel}</span></div>
+      </div>
+    `;
+    card.addEventListener("click", ()=> abrirDetalleRutina(r.id));
+    cont.appendChild(card);
+  });
+}
+
+function abrirDetalleRutina(id){
+  const r = getRutina(id);
+  const yaHoy = ejercicioHoy.date === todayISO() && ejercicioHoy.rutinaId === id;
+  sheetContent.innerHTML = `
+    <div class="grabber"></div>
+    <button class="close-x" id="btnCerrarDetalle">✕</button>
+    <span class="eyebrow">${r.tipo} · ${r.lugar}</span>
+    <h2>${r.emoji} ${r.nombre}</h2>
+    <div class="hero-photo">
+      <span class="emoji-fallback">${r.emoji}</span>
+      <img src="${r.foto}" alt="" loading="lazy" onerror="this.remove()">
+    </div>
+    <p style="font-size:0.9rem; color:#6b6455; line-height:1.5;">${r.objetivo}</p>
+    <div class="stamp-row">
+      <div class="stamp">Duración<b>${r.duracion} min</b></div>
+      <div class="stamp">Kcal aprox.<b>~${r.kcal}</b></div>
+      <div class="stamp">Nivel<b>${r.nivel}</b></div>
+    </div>
+    <h4>Ejercicios</h4>
+    <ul class="ing-list">
+      ${r.ejercicios.map(e=>`<li><span>${e.n}</span><span class="q">${e.detalle}</span></li>`).join("")}
+    </ul>
+    <div class="btn-row">
+      <button class="btn block ${yaHoy?'secondary':''}" id="btnRegistrarEntreno">${yaHoy ? '✓ Registrado hoy' : '✅ Registrar entrenamiento de hoy'}</button>
+    </div>
+  `;
+  overlay.classList.remove("hidden");
+  document.getElementById("btnCerrarDetalle").addEventListener("click", cerrarOverlay);
+  document.getElementById("btnRegistrarEntreno").addEventListener("click", ()=>{
+    registrarEntreno(r);
+    cerrarOverlay();
+    renderDeporte();
+  });
+}
+
+function registrarEntreno(r){
+  const hoy = todayISO();
+  ejercicioHoy = {date:hoy, rutinaId:r.id, kcal:r.kcal};
+  const existente = historialEjercicio.find(h=>h.date===hoy);
+  if(existente){
+    existente.rutinaId = r.id; existente.nombre = r.nombre; existente.kcal = r.kcal;
+  } else {
+    historialEjercicio.push({date:hoy, rutinaId:r.id, nombre:r.nombre, kcal:r.kcal});
+  }
+  persistAll();
+}
+
 // ---------- Registro Service Worker ----------
 if("serviceWorker" in navigator){
   window.addEventListener("load", ()=>{
@@ -654,3 +874,4 @@ if("serviceWorker" in navigator){
 // ---------- Render inicial ----------
 renderRecetas();
 renderInicio();
+renderDeporte();
